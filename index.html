@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Nutrition Calculator</title>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #0d0d0d;
+    --card: #161616;
+    --card2: #1e1e1e;
+    --red: #e53935;
+    --red-dim: #b71c1c;
+    --red-glow: rgba(229,57,53,0.25);
+    --box: #222;
+    --border: #2e2e2e;
+    --muted: #555;
+    --muted2: #3a3a3a;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--red);
+    font-family: 'Segoe UI', Arial, sans-serif;
+    padding: 28px 24px;
+    min-height: 100vh;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+    color: var(--red);
+    opacity: 0.85;
+  }
+
+  /* Column header strip */
+  .col-headers {
+    display: grid;
+    grid-template-columns: 150px 1fr 1fr 1fr 1fr 90px 36px;
+    gap: 8px;
+    padding: 0 16px 8px 16px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .col-headers div { text-align: center; }
+  .col-headers div:first-child { text-align: left; }
+
+  /* Food card */
+  .food-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px 12px;
+    margin-bottom: 10px;
+    transition: border-color 0.2s;
+  }
+  .food-card:focus-within { border-color: var(--red-dim); }
+
+  /* Main calculated row */
+  .main-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 1fr 1fr 1fr 90px 36px;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+
+  .food-name {
+    background: var(--box);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--red);
+    font-size: 0.88rem;
+    font-weight: 600;
+    padding: 7px 10px;
+    width: 100%;
+  }
+
+  .calc-box {
+    background: var(--box);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--red);
+    font-size: 0.9rem;
+    font-weight: 600;
+    padding: 7px 6px;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  .gram-badge {
+    background: var(--red);
+    color: #000;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 800;
+    padding: 7px 6px;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  .del-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 1.1rem;
+    height: 34px;
+    width: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .del-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* Per-100g section */
+  .per100-wrap {
+    background: var(--card2);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 9px 12px;
+    margin-bottom: 10px;
+  }
+
+  .per100-header {
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 7px;
+  }
+
+  .per100-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 1fr 1fr 1fr 90px 36px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .per100-hint {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: right;
+    padding-right: 4px;
+  }
+
+  .per100-input {
+    background: var(--bg);
+    border: 1px solid var(--muted2);
+    border-radius: 5px;
+    color: var(--red);
+    font-size: 0.83rem;
+    padding: 6px 6px;
+    text-align: center;
+    width: 100%;
+    transition: border-color 0.15s;
+  }
+  .per100-input::placeholder { color: var(--muted); }
+  .per100-input:focus { outline: none; border-color: var(--red); }
+
+  /* Slider row */
+  .slider-row {
+    display: grid;
+    grid-template-columns: 150px 1fr 90px 36px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .slider-range-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-align: right;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+  }
+
+  .slider-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .range-end {
+    font-size: 0.65rem;
+    color: var(--muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 3px;
+    border-radius: 3px;
+    background: var(--muted2);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--red);
+    cursor: pointer;
+    box-shadow: 0 0 8px var(--red-glow);
+    transition: box-shadow 0.15s;
+  }
+  input[type="range"]:active::-webkit-slider-thumb {
+    box-shadow: 0 0 14px var(--red-glow);
+  }
+
+  .gram-num-input {
+    background: var(--bg);
+    border: 1px solid var(--red-dim);
+    border-radius: 6px;
+    color: var(--red);
+    font-size: 0.88rem;
+    font-weight: 700;
+    padding: 6px 6px;
+    text-align: center;
+    width: 100%;
+  }
+  .gram-num-input:focus { outline: none; border-color: var(--red); }
+
+  /* Add button */
+  .add-btn {
+    background: none;
+    border: 1px dashed var(--muted2);
+    border-radius: 10px;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    padding: 11px;
+    text-align: center;
+    text-transform: uppercase;
+    width: 100%;
+    margin-bottom: 18px;
+    transition: all 0.2s;
+  }
+  .add-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* Total row */
+  .total-card {
+    background: var(--card);
+    border: 1px solid var(--red-dim);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+
+  .total-inner {
+    display: grid;
+    grid-template-columns: 150px 1fr 1fr 1fr 1fr 90px 36px;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .total-label {
+    font-size: 0.75rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--red);
+  }
+
+  .total-val {
+    background: var(--red);
+    color: #000;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    padding: 7px 6px;
+    text-align: center;
+    letter-spacing: 0.5px;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input { outline: none; }
+  .food-name:focus { border-color: var(--red-dim); }
+
+  /* Download button */
+  .dl-btn {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 11px;
+    background: none;
+    border: 1px solid var(--red-dim);
+    border-radius: 10px;
+    color: var(--red);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .dl-btn:hover { border-color: var(--red); background: rgba(229,57,53,0.07); }
+  .dl-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* How it works section */
+  .how-section {
+    margin-top: 32px;
+    border-top: 1px solid var(--border);
+    padding-top: 22px;
+  }
+  .how-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+  .how-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .how-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .step-num {
+    background: var(--red-dim);
+    color: #000;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    font-weight: 800;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-text {
+    font-size: 0.78rem;
+    color: var(--muted);
+    line-height: 1.55;
+  }
+  .step-text strong { color: var(--red); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>Nutrition Calculator</h1>
+
+<div class="col-headers">
+  <div>Food</div>
+  <div>Protein</div>
+  <div>Carbs</div>
+  <div>Fat</div>
+  <div>Calories</div>
+  <div>Grams</div>
+  <div></div>
+</div>
+
+<div id="food-list"></div>
+
+<button class="add-btn" id="add-btn">+ Add Food</button>
+
+<div class="total-card">
+  <div class="total-inner">
+    <div class="total-label">Total</div>
+    <div class="total-val" id="total-p">0</div>
+    <div class="total-val" id="total-c">0</div>
+    <div class="total-val" id="total-f">0</div>
+    <div class="total-val" id="total-ca">0</div>
+    <div class="total-val" id="total-g">0g</div>
+    <div></div>
+  </div>
+</div>
+
+<button class="dl-btn" id="dl-btn" onclick="downloadExcel()">⬇ Download as Excel</button>
+
+<div class="how-section">
+  <div class="how-title">How it works</div>
+  <div class="how-steps">
+    <div class="how-step">
+      <div class="step-num">1</div>
+      <div class="step-text">Click <strong>+ Add Food</strong> to create a new food row. Type the food name in the left field.</div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">2</div>
+      <div class="step-text">Enter the <strong>macros per 100g</strong> — Protein, Carbs, Fat, and Calories — in the grey input fields inside each card. Find these values on the food's nutrition label.</div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">3</div>
+      <div class="step-text">Use the <strong>slider</strong> (or type a number) to set how many grams of that food you ate. The calculated macros update instantly in the row above.</div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">4</div>
+      <div class="step-text">Add as many foods as you need. The <strong>Total row</strong> at the bottom always shows your combined protein, carbs, fat, calories, and total grams.</div>
+    </div>
+    <div class="how-step">
+      <div class="step-num">5</div>
+      <div class="step-text">Click <strong>⬇ Download as Excel</strong> to export the full log with a totals row as a <strong>.xlsx</strong> file — named with today's date.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const state = { foods: [], nextId: 0 };
+
+function addFood() {
+  state.foods.push({ id: state.nextId++, name: 'Food', p100: 0, c100: 0, f100: 0, cal100: 0, grams: 100 });
+  render();
+}
+
+function removeFood(id) {
+  state.foods = state.foods.filter(f => f.id !== id);
+  render();
+}
+
+function calc(food) {
+  const r = food.grams / 100;
+  return {
+    p:  (food.p100   * r).toFixed(1),
+    c:  (food.c100   * r).toFixed(1),
+    f:  (food.f100   * r).toFixed(1),
+    ca: Math.round(food.cal100 * r)
+  };
+}
+
+function refreshRow(food) {
+  const v = calc(food);
+  document.getElementById(`dp-${food.id}`).textContent  = v.p;
+  document.getElementById(`dc-${food.id}`).textContent  = v.c;
+  document.getElementById(`df-${food.id}`).textContent  = v.f;
+  document.getElementById(`dca-${food.id}`).textContent = v.ca;
+  document.getElementById(`dg-${food.id}`).textContent  = food.grams + 'g';
+  refreshTotals();
+}
+
+function refreshTotals() {
+  let tp = 0, tc = 0, tf = 0, tca = 0, tg = 0;
+  state.foods.forEach(food => {
+    const r = food.grams / 100;
+    tp  += food.p100   * r;
+    tc  += food.c100   * r;
+    tf  += food.f100   * r;
+    tca += food.cal100 * r;
+    tg  += food.grams;
+  });
+  document.getElementById('total-p').textContent  = tp.toFixed(1);
+  document.getElementById('total-c').textContent  = tc.toFixed(1);
+  document.getElementById('total-f').textContent  = tf.toFixed(1);
+  document.getElementById('total-ca').textContent = Math.round(tca);
+  document.getElementById('total-g').textContent  = tg + 'g';
+}
+
+function render() {
+  const list = document.getElementById('food-list');
+  list.innerHTML = '';
+
+  state.foods.forEach(food => {
+    const v = calc(food);
+    const card = document.createElement('div');
+    card.className = 'food-card';
+
+    card.innerHTML = `
+      <div class="main-row">
+        <input class="food-name" type="text" value="${food.name.replace(/"/g, '&quot;')}" id="fn-${food.id}">
+        <div class="calc-box" id="dp-${food.id}">${v.p}</div>
+        <div class="calc-box" id="dc-${food.id}">${v.c}</div>
+        <div class="calc-box" id="df-${food.id}">${v.f}</div>
+        <div class="calc-box" id="dca-${food.id}">${v.ca}</div>
+        <div class="gram-badge" id="dg-${food.id}">${food.grams}g</div>
+        <button class="del-btn" id="db-${food.id}">×</button>
+      </div>
+
+      <div class="per100-wrap">
+        <div class="per100-header">Per 100g — enter macros below</div>
+        <div class="per100-row">
+          <div class="per100-hint">Protein · Carbs · Fat · Cal →</div>
+          <input class="per100-input" type="number" min="0" step="0.1"
+            placeholder="0" value="${food.p100 || ''}" id="pp-${food.id}">
+          <input class="per100-input" type="number" min="0" step="0.1"
+            placeholder="0" value="${food.c100 || ''}" id="pc-${food.id}">
+          <input class="per100-input" type="number" min="0" step="0.1"
+            placeholder="0" value="${food.f100 || ''}" id="pf-${food.id}">
+          <input class="per100-input" type="number" min="0" step="1"
+            placeholder="0" value="${food.cal100 || ''}" id="pca-${food.id}">
+          <div></div>
+          <div></div>
+        </div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-range-labels">
+          <span>0</span>
+        </div>
+        <div class="slider-wrap">
+          <input type="range" min="0" max="300" step="1"
+            value="${food.grams}" id="sl-${food.id}">
+          <span class="range-end">300g</span>
+        </div>
+        <input type="number" class="gram-num-input" min="0" max="300" step="1"
+          value="${food.grams}" id="gn-${food.id}">
+        <div></div>
+      </div>
+    `;
+
+    list.appendChild(card);
+
+    // Name
+    document.getElementById(`fn-${food.id}`).addEventListener('input', e => {
+      food.name = e.target.value;
+    });
+
+    // Per-100g inputs
+    [['pp', 'p100'], ['pc', 'c100'], ['pf', 'f100'], ['pca', 'cal100']].forEach(([prefix, field]) => {
+      document.getElementById(`${prefix}-${food.id}`).addEventListener('input', e => {
+        food[field] = parseFloat(e.target.value) || 0;
+        refreshRow(food);
+      });
+    });
+
+    // Slider
+    const slider = document.getElementById(`sl-${food.id}`);
+    const gramNum = document.getElementById(`gn-${food.id}`);
+
+    slider.addEventListener('input', () => {
+      food.grams = parseInt(slider.value);
+      gramNum.value = food.grams;
+      refreshRow(food);
+    });
+
+    gramNum.addEventListener('input', () => {
+      let v = parseInt(gramNum.value) || 0;
+      v = Math.min(300, Math.max(0, v));
+      food.grams = v;
+      slider.value = v;
+      refreshRow(food);
+    });
+
+    // Delete
+    document.getElementById(`db-${food.id}`).addEventListener('click', () => {
+      removeFood(food.id);
+    });
+  });
+
+  refreshTotals();
+}
+
+document.getElementById('add-btn').addEventListener('click', addFood);
+
+function refreshDownloadBtn() {
+  document.getElementById('dl-btn').disabled = state.foods.length === 0;
+}
+
+const _origRefreshTotals = refreshTotals;
+function refreshTotals() {
+  _origRefreshTotals();
+  refreshDownloadBtn();
+}
+
+function downloadExcel() {
+  if (state.foods.length === 0) return;
+
+  const rows = [
+    ['Food', 'Protein (g)', 'Carbs (g)', 'Fat (g)', 'Calories (kcal)', 'Grams (g)'],
+    ...state.foods.map(food => {
+      const v = calc(food);
+      return [food.name, +v.p, +v.c, +v.f, +v.ca, food.grams];
+    }),
+    [],
+    ['TOTAL',
+      +state.foods.reduce((a, f) => a + f.p100 * f.grams / 100, 0).toFixed(1),
+      +state.foods.reduce((a, f) => a + f.c100 * f.grams / 100, 0).toFixed(1),
+      +state.foods.reduce((a, f) => a + f.f100 * f.grams / 100, 0).toFixed(1),
+      Math.round(state.foods.reduce((a, f) => a + f.cal100 * f.grams / 100, 0)),
+      state.foods.reduce((a, f) => a + f.grams, 0),
+    ],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [22, 14, 12, 10, 18, 12].map(w => ({ wch: w }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Nutrition Log');
+
+  const date = new Date().toISOString().slice(0, 10);
+  XLSX.writeFile(wb, `nutrition-log-${date}.xlsx`);
+}
+
+// Start with 2 rows
+addFood();
+addFood();
+</script>
+</body>
+</html>
